@@ -26,7 +26,35 @@ Something that I considered as well was replacing the blockHash with the blockHe
 7.4G	.
 ```
 
+## Dust limits
+This [nostr post](https://njump.me/nevent1qqs92428jlhkdtpa9334whfagxx8genc6l3ggcvua859mu2k0fldvgqzypn4hp87wh3pd2u5036r3mj3njnhw5mkmhc9mt0m5cnch5qju8tjs47scs3) by waxwing unveiled an interesting fact about the taproot UTXO set. I was able to verify the numbers with the UTXO data that was collected during indexing of the chain for the light client implementation. The numbers below are from the data which is also provided at the end. We can see that ~85% of UTXOs have a value of 1,000 sats or less. Based on this it makes sense to implement a dust limit for light clients. As long as it's clearly communicated to users that UTXOs below value x are not found by normal scanning it should not be a problem. The UX would massively improve as scanning time has a pretty linear relation to the size of the UTXO set. One could set the value to 1,000 maybe even higher. Clients can be flexible with that. One could even have a indexing server implementation that allows clients to dynamically set the dust limit when fetching tweaks and UTXOs. Setting the number slightly above 1,000 sats or maybe set the value to 2,000 sats would reduce the scanning time by 85%. This woudl be a massive UX improvement. Furthermore low value UTXOs are bad UX initself as users will not be able to spend such UTXOs economically as shown very nicely by this [tool](https://jlopp.github.io/unspendable-utxo-calculator). A p2tr UTXO costs 68 bytes to spend. At a fee rate of only 15 sats/vByte the fees exceed the value of the UTXO. Considering that nobody wants fees to chew up a significant part of their UTXO, it does not seem unreasonable to set the dust limit to 3,750 sats or even 5,000 sats. At that point one could even reduce the UTXO set that needs scanning by 90%. It has to be mentioned that UTXOs below the dust limit will only not be found by conventional/default scanning. A user could always fallback to scanning the full index (will take **a lot** longer) or out-of-bounds communication with the sender.
+
+```plaintext
+Distribution value (in sats) of the taproot UTXO set
+
+count       38860604.00  // total number of UTXOs in the set
+mean          155129.58
+std         92404414.33
+min                1.00
+0%                 1.00
+10%              330.00
+20%              546.00
+30%              546.00
+40%              546.00
+50%              546.00
+60%              546.00
+70%              546.00
+80%              546.00
+82%              600.00
+85%             1000.00
+90%             3750.00
+max     410000000000.00
+```
+
+
+
 ### The files can be found here:
+Blocks: 709632 -> 834761
 - [Tweaks (cut-through)](https://snb-public.fra1.cdn.digitaloceanspaces.com/BIP0352/Reference-Indices/blind-bit-2024-03-15/tweaks-1710486950.csv)
 - [UTXO Set](https://snb-public.fra1.cdn.digitaloceanspaces.com/BIP0352/Reference-Indices/blind-bit-2024-03-15/utxos-1710486950.csv)
 - [Filters](https://snb-public.fra1.cdn.digitaloceanspaces.com/BIP0352/Reference-Indices/blind-bit-2024-03-15/filters-1710486950.csv)
