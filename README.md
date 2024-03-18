@@ -1,5 +1,5 @@
 # BIP0352 Light Client Specification (WIP)
-This repo has the goal to define a spec for a BIP 0352 Silent Payment light client. 
+This repo has the goal to define a spec for a BIP 0352 Silent Payment (SP) light client. 
 Additionally this repo should be a place for developers to inform themselves on the particularities on developing a light client for Silent Payments. This is not a repo where the entire protocol specification will be rehashed, but rather a place where special nuances will be highlighted, especially those relevant for light client developers. You can find the [BIP](https://github.com/josibake/bips/blob/silent-payments-bip/bip-0352.mediawiki) here.
 
 ## About BIP 0352
@@ -51,6 +51,24 @@ min                1.00
 max     410000000000.00
 ```
 
+## Workflow receiving
+Overview
+1. Fetch the tweaks (possibly filtered for dust limit)
+2. Compute the possible pubkeys for n = 0
+3. Compare the pubkeys (+ previous matched scriptPubKeys[^1]) against a taproot-only filter
+    - If no match: go to 1. with block_height + 1
+    - Else: go to 4.
+4. Fetch simplified UTXOs[^2]
+5. Scan accodring to the [BIP](https://github.com/josibake/bips/blob/silent-payments-bip/bip-0352.mediawiki#scanning) (bonus points if you reuse the pubkeys from 2. instead of recomputing)
+6. Collect all matched UTXOs and add to wallet
+7. Go to 1. with block_height + 1
+
+
+## Backup from seed
+
+- Old transactions will not be found
+- Will take a long time (maybe we can find a solution for that as well)
+- ... WIP
 
 
 ### The files can be found here:
@@ -61,3 +79,7 @@ Blocks: 709632 -> 834761
 - [Tweak Indices](https://snb-public.fra1.cdn.digitaloceanspaces.com/BIP0352/Reference-Indices/blind-bit-2024-03-15/tweak-indices-1710486950.csv)
 - [Headers](https://snb-public.fra1.cdn.digitaloceanspaces.com/BIP0352/Reference-Indices/blind-bit-2024-03-15/filters-1710486950.csv)
 - [Tweak Count Comparison](https://snb-public.fra1.cdn.digitaloceanspaces.com/BIP0352/Reference-Indices/blind-bit-2024-03-15/tweak_counts_comparison-1710486950.csv)
+
+[^1]: Let's craft a realistic scenario. Bob sends coins to Alice via the SP protocol, Alice receives the coins. The coins are now on a p2tr pubkey which does have a bc1p... address which is also valid. Now Bob crafts a new transaction and sends coins to Alice but not the proper way through the SP protocol but directly to the bc1p... address of which he knows that it belongs to Alice. When Alice scans the chain she will not find this Output. The tweak she will compute for this new transaction will be different than before and it will not match the old pubkey where she already received funds. No SP implementation should ever allow this, yet this will most likely happen anyways due to user errors. For this reason a wallet implementation should always track matched scriptPubKeys to find such UTXOs. Additionally the corresponding tweak for the private key should be kept as well in order to easily spend such UTXOs.
+
+[^2]: In order to properly spend a UTXO the light client needs txid, vout, scriptPubKey and the value. An index server can easily provide this data to light clients. 
