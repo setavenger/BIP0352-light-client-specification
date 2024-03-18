@@ -52,16 +52,18 @@ max     410000000000.00
 ```
 
 ## Workflow receiving
-Overview
+### Overview
+Per block:
 1. Fetch the tweaks (possibly filtered for dust limit)
 2. Compute the possible pubkeys for n = 0
-3. Compare the pubkeys (+ previous matched scriptPubKeys[^1]) against a taproot-only filter
+3. Fetch taproot-only filter (BIP 158)
+4. Compare the pubkeys (+ previous matched scriptPubKeys[^1]) against a taproot-only filter
     - If no match: go to 1. with block_height + 1
-    - Else: go to 4.
-4. Fetch simplified UTXOs[^2]
-5. Scan accodring to the [BIP](https://github.com/josibake/bips/blob/silent-payments-bip/bip-0352.mediawiki#scanning) (bonus points if you reuse the pubkeys from 2. instead of recomputing)
-6. Collect all matched UTXOs and add to wallet
-7. Go to 1. with block_height + 1
+    - Else: continue with 5.
+5. Fetch simplified UTXOs[^2]
+6. Scan accodring to the [BIP](https://github.com/josibake/bips/blob/silent-payments-bip/bip-0352.mediawiki#scanning) (bonus points if you reuse the pubkeys from 2. instead of recomputing)
+7. Collect all matched UTXOs and add to wallet
+8. Go to 1. with block_height + 1
 
 
 ## Backup from seed
