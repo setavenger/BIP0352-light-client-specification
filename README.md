@@ -21,6 +21,13 @@ does not know which public keys belong to him before actually scanning and reeng
 sender made. This process is computationally intensive. For that reason light clients need a way to find their UTXOs
 without having to do all the computation themselves.
 
+## Important
+
+A light client wallet should not run on different devices/instances. This will lead to states of UTXOs getting messed 
+up if they are not confirmed. Using a full node/Electrum server to check UTXO states is possible but will leak privacy 
+as it shows a particular interest in a UTXO. If several instances are a requirement, running a full node is the best path 
+to preserve privacy.
+
 ## Reducing work
 
 The goal of this specification is to minimize the computational and required bandwidth burden on light clients. This
