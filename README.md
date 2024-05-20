@@ -12,8 +12,6 @@ standard for SP light clients and explore how other wallet backends like Electru
 client. 
 The ambition is to integrate serving Silent Payments indexing data into Electrum.
 
-The specification is designed to 
-
 ## About BIP 0352
 
 First let's start with brief explanation of what BIP-0352 is. The BIP defines a protocol where a receiver publishes a
