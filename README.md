@@ -192,17 +192,15 @@ NOTE: This is not implemented in any BlindBit software yet but will be soon.
 Spent UTXOs should return the block_hash and an array of (sha256(outpoint||block_hash)[:8]).
 
 ```json
-
 {
-    block_hash: "00000120c9a85327d21a09e9a232eb1783f6de3e32cfeba02d2200e80cc017d4",
-    data: [
+    "block_hash": "00000120c9a85327d21a09e9a232eb1783f6de3e32cfeba02d2200e80cc017d4",
+    "data": [
         "a3e456fa"
         "62aebc34"
         "983a4fe1"
         "e3456afb"
     ]
 }
-
 ```
 
 ## Marking UTXOs as spent
