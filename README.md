@@ -9,11 +9,14 @@ specification is based on [BlindBit Oracle](https://github.com/setavenger/blindb
 with [blindbitd](https://github.com/setavenger/blindbitd). I hope this will change through feedback from other
 developers, and more implementations for light clients and indexing servers pop up. The goal here is to formalize a
 standard for SP light clients and explore how other wallet backends like Electrum can implement support for an SP light
-client.
+client. 
+The ambition is to integrate serving Silent Payments indexing data into Electrum.
+
+The specification is designed to 
 
 ## About BIP 0352
 
-First let's start with brief explanation of what BIP0352 is. The BIP defines a protocol where a receiver publishes a
+First let's start with brief explanation of what BIP-0352 is. The BIP defines a protocol where a receiver publishes a
 static address from which the sender derives a public key of the receiver. The generated public key will be unique for
 every transaction, and it won't be possible for an outside observer to attribute a certain public key to the receivers
 static address. The receiver has to then scan the blockchain in order to find UTXOs for his public keys. The receiver
@@ -21,21 +24,18 @@ does not know which public keys belong to him before actually scanning and reeng
 sender made. This process is computationally intensive. For that reason light clients need a way to find their UTXOs
 without having to do all the computation themselves.
 
-## Important
-
-A light client wallet should not run on different devices/instances. This will lead to states of UTXOs getting messed 
-up if they are not confirmed. Using a full node/Electrum server to check UTXO states is possible but will leak privacy 
-as it shows a particular interest in a UTXO. If several instances are a requirement, running a full node is the best path 
-to preserve privacy.
-
 ## Reducing work
 
 The goal of this specification is to minimize the computational and required bandwidth burden on light clients. This
-should be achieved without compromising their privacy. In the Bip a light client is defined as a client which does not
+should be achieved without compromising their privacy. In the BIP a light client is defined as a client which does not
 have a connection to a personal electrum server or a bitcoin node. This opens up a question on how a light client finds
-an output spent to it. The wallet needs to compute the tweaks and check whether an output exists in a block. In this
-section I will outline a couple of components needed for a light client to be able to send and receive without access to
+an output sent to it. The wallet needs to compute the tweaks and check whether an output exists in a block. This
+section will outline a couple of components needed for a light client to be able to send and receive without access to
 a full node or a personal electrum server.
+
+In general the chosen approach for this specification is to not show interest in any particular UTXO or transaction to 
+any indexing server. This means that only an interest in a block will be shown. The block data is simplified and 
+condensed down to the essential information required to find and spend UTXOs.
 
 ### 1. Using a tweak index
 
@@ -47,7 +47,7 @@ implementation of such an indexing server.
 
 ### 2. Compact block filters
 
-With Bip 158 filters a light client can check whether a UTXO exists in a block. After precomputing the possible outputs
+With BIP 158 filters a light client can check whether a UTXO exists in a block. After precomputing the possible outputs
 based on the tweaks index a wallet can match those against a filter of a block. Checking whether an owned output
 potentially exists in a block before the block data is retrieved reduces the networking overhead. To reduce the
 bandwidth requirements even further [BlindBit Oracle](https://github.com/setavenger/blindbit-oracle/) uses taproot only
@@ -82,13 +82,15 @@ Per block:
 
 ## Specification
 
-Below the mandatory fields represent the bare minimum for a client to function. It makes sense to include optional fields from the get go so clients don't have to get this information in a second or third round of requests.
+The mandatory fields are the bare minimum for a client to function. It makes sense to include optional 
+fields from the get go so clients don't have to get certain information in a second or third round of requests. 
+Optional fields are based on what data is usually provided by BlindBit Oracle too smoothen some workflows.
 
 ### Tweaks
 
 Tweaks MUST be provided as json arrays of compressed public keys (33byte) in hex format. (Should bandwidth critical
 applications use byte serialisation for this? A json array of strings is easier for developers but will probably use
-more bandwidth. gRPC could reduce bandwidth for exactly these kinds of datasets). See example below:
+more bandwidth.). See example below:
 
 ```json
 [
@@ -101,14 +103,21 @@ more bandwidth. gRPC could reduce bandwidth for exactly these kinds of datasets)
 
 ### Filters
 
-NOTE: The `filter_type` has to be defined in a Bip but can also be omitted. Alternatively a custom field and enum
-can be derived for the purpose of this specification. `block_height` is nice to have if the client does not keep track
-of it's requests-responses.
+There are two filters. A New UTXOs filter and a spent UTXOs filter. One to find received UTXOs and another to check 
+whether a UTXO has been spent. The first filter just contains the x-only pubKeys of newly created taproot UTXOs for
+a given block. The new UTXOs filter should only include those UTXOs that come from eligible transactions to cut down
+on size. The spent UTXOs filter is based on shortended hashes of the spent outpoints salted with the block_hash 
+(sha256(outpoint||block_hash)[:8]).
+
+
+NOTE: The `filter_type` could be defined in a BIP but can also be omitted. Alternatively a custom field and enum
+can be derived for the purpose of this specification, especially that this specification adds two new filter_types. 
+`block_height` in general is a nice to have as it might make processing easier.
 
 Mandatory:
 
 - block_hash (required for the key in the GCS filter)
-- data
+- data (depending on the requested filter)
 
 Optional:
 
@@ -133,7 +142,7 @@ Mandatory:
 - txid
 - vout
 - value
-- scriptpubkey (should we use x-only pubKeys instead? Same for filters) [can't map a found output to a utxo then]
+- scriptPubKey (should we use x-only pubKeys instead?)
 - spent (as long as a transaction has not fully spent all its taproot outputs we cannot remove them from the
   outputs_to_check. Technically this can be checked by the wallet software but it would be VERY helpful to always just
   provide this information)
@@ -141,10 +150,7 @@ Mandatory:
 Optional:
 
 - timestamp
-- block_height or block_hash
-- any other field that can just be ignored by other implementations (make sure we don't get a nostr mess were different
-  clients/implementations overlap and interpret the same key differently. Probably better to just define here what is
-  allowed as additional information)
+- block_height or block_hash 
 
 ```json
 [
@@ -181,16 +187,62 @@ Optional:
 ]
 ```
 
+### Spent UTXOs
+
+NOTE: This is not implemented in any BlindBit software yet but will be soon.
+
+Spent UTXOs should return the block_hash and an array of (sha256(outpoint||block_hash)[:8]).
+
+```json
+
+{
+    block_hash: "00000120c9a85327d21a09e9a232eb1783f6de3e32cfeba02d2200e80cc017d4",
+    data: [
+        "a3e456fa"
+        "62aebc34"
+        "983a4fe1"
+        "e3456afb"
+    ]
+}
+
+```
+
+## Marking UTXOs as spent
+
+As mentioned before checking the state of a UTXO should not be done by checking a specific scriptPubKey with a *third 
+party* Electrum server. Showing interest for a specific UTXO leaks privacy and should not be done in privacy focused 
+setting. A better alternative is to have a filter which indicates if a UTXO is spent or not. Construction of the filter 
+is based on the hash of the outpoint salted with the block_hash (sha256(outpoint||block_hash)[:8]). 
+
+If matching against the filter is positive the spent UTXOs can be downloaded as well. The computed 8byte_hashes then 
+need to be compared against the downloaded hashes. Based on that the outpoints can be marked as spent.
+
+Marking a UTXO as spent but unconfirmed has to be done inside the wallet locally. Using Electrum to follow the 
+transactions should not be done for the above reason.
+
+A light client wallet should not run on different devices/instances. This will lead to states of UTXOs getting messed 
+up if they are not confirmed. Using a third-party full node/Electrum server to check UTXO states is possible but will 
+leak privacy. If several instances are a requirement, running a full node is the best path to preserve privacy.
+
 ## Backup from seed
 
 - Old transactions will not be found
     - An indexer may prune a transaction where all taproot outputs have been spent. In that case the spent UTXOs will
       not be found on a rescan. Then the wallet software will not be able to reconstruct the transaction history without
-      external help
+      additional external help
 - Will take a long time (maybe we can find a solution for that as well)
     - Rescanning the entire chain (or from an activation height) means that several thousand blocks have to be
       processed. This number will only increase over time. Backing up a wallet birth-height together with the seed can
       obviously help here.
+    - Creating UTXO backup files could be an option as well. 
+
+
+## Out-of-band notifications
+
+The BIP hints that receivers can be tipped off by the sender on where to find their UTXOs. In order to not leak privacy
+a secure private communications channel has to be established. Currently, it is not clear how this can be achieved in 
+a simple interoperable way. 
+
 
 ## Data (out-of-date)
 
@@ -266,17 +318,6 @@ min                1.00
 90%             3750.00
 max     410000000000.00
 ```
-
-### The files can be found here:
-
-Blocks: 709632 -> 834761
-
-- [Tweaks (cut-through)](https://snb-public.fra1.cdn.digitaloceanspaces.com/BIP0352/Reference-Indices/blind-bit-2024-03-15/tweaks-1710486950.csv)
-- [UTXO Set](https://snb-public.fra1.cdn.digitaloceanspaces.com/BIP0352/Reference-Indices/blind-bit-2024-03-15/utxos-1710486950.csv)
-- [Filters](https://snb-public.fra1.cdn.digitaloceanspaces.com/BIP0352/Reference-Indices/blind-bit-2024-03-15/filters-1710486950.csv)
-- [Tweak Indices](https://snb-public.fra1.cdn.digitaloceanspaces.com/BIP0352/Reference-Indices/blind-bit-2024-03-15/tweak-indices-1710486950.csv)
-- [Headers](https://snb-public.fra1.cdn.digitaloceanspaces.com/BIP0352/Reference-Indices/blind-bit-2024-03-15/headers-inv-1710486950.csv)
-- [Tweak Count Comparison](https://snb-public.fra1.cdn.digitaloceanspaces.com/BIP0352/Reference-Indices/blind-bit-2024-03-15/tweak_counts_comparison-1710486950.csv)
 
 [^1]: In order to properly spend a UTXO the light client needs txid, vout, scriptPubKey and the value. An index server
 can easily provide this data to light clients.
