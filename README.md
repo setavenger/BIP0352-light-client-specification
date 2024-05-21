@@ -43,6 +43,10 @@ reduce the computational burden on light clients. They won't have to compute the
 to do one ECC multiplication less. [BlindBit Oracle](https://github.com/setavenger/blindbit-oracle/) is one
 implementation of such an indexing server.
 
+The tweak index can be kept smaller if necessary. Implementing cut-through could reduce the number of tweaks that have to be served. If all taproot UTXOs of a transaction are spent we can remove the tweak for that transaction from the index. An initial analysis has shown that with current mainnet data as much as 38% of tweaks could be removed from the index.
+
+While this method does save a lot of bandwidth it has some drawbacks for light clients. During a rescan light clients will not be able to find old transactions that have been affected by cut-through. 
+
 ### 2. Compact block filters
 
 With BIP 158 filters a light client can check whether a UTXO exists in a block. After precomputing the possible outputs
@@ -77,6 +81,8 @@ Per block:
 7. Collect all matched UTXOs and add to wallet
 8. Go to 1. with block_height + 1
 9. Extra: Keep an eye on used pubKeys[^2]
+
+Steps 2+3 can be done in parallel. It's rather unlikely that a block has zero tweaks which is the only reason why one would not need to request the filter.
 
 ## Specification
 
@@ -222,7 +228,7 @@ leak privacy. If several instances are a requirement, running a full node is the
 
 ## Backup from seed
 
-- Old transactions will not be found
+- Old transactions might not be found
     - An indexer may prune a transaction where all taproot outputs have been spent. In that case the spent UTXOs will
       not be found on a rescan. Then the wallet software will not be able to reconstruct the transaction history without
       additional external help
@@ -230,7 +236,7 @@ leak privacy. If several instances are a requirement, running a full node is the
     - Rescanning the entire chain (or from an activation height) means that several thousand blocks have to be
       processed. This number will only increase over time. Backing up a wallet birth-height together with the seed can
       obviously help here.
-    - Creating UTXO backup files could be an option as well. 
+    - Creating UTXO backup files could be an option as well. The drawback here is that they have to be periodically be created/updated.
 
 
 ## Out-of-band notifications
@@ -254,11 +260,11 @@ of a block at that time. There is no cut-through used for those yet. I expect th
 based on the current UTXO set will reduce the size of filters. All of these optimisations are important as they can
 greatly reduce the workload for light clients.
 
-~~Cut-through reduces the number of tweaks by about 38%. This can help light client because this basically means that
+Cut-through reduces the number of tweaks by about 38%. This can help light client because this basically means that
 they can
 reduce their computation time by about 38%. The db size does increase quite a bit. This is due to the key value schema
 used.
-For `tweaks` the key is blockHash [32] + txid [32] then the tweak [33] as value. The `tweak-index` database stores the
+~~For `tweaks` the key is blockHash [32] + txid [32] then the tweak [33] as value. The `tweak-index` database stores the
 tweaks concatenated and unordered per blockHash. So we have blockHash [32] and then var-length value which
 is [n * 33].~~
 
