@@ -70,7 +70,7 @@ measures together can save a lot of bandwidth for a client.
 Per block:
 
 1. Fetch the tweaks (possibly filtered for dust limit)
-2. Compute the possible pubKeys for n = 0
+2. Compute the possible pubKeys for n = 0 (this has to include the labels including negated labels)
 3. Fetch taproot-only filter (BIP 158)
 4. Compare the pubKeys against a taproot-only filter
     - If no match: go to 1. with block_height + 1
