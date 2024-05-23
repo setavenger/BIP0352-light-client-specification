@@ -111,8 +111,8 @@ There are two filters. A New UTXOs filter and a spent UTXOs filter. One to find 
 whether a UTXO has been spent. The first filter just contains the x-only pubKeys of newly created taproot UTXOs for
 a given block. The new UTXOs filter should only include those UTXOs that come from eligible transactions to cut down
 on size. The spent UTXOs filter is based on shortended hashes of the spent outpoints salted with the block_hash 
-(sha256(outpoint||block_hash)[:8]).
-
+(sha256(outpoint||block_hash)[:8]). Outpoints are (txid, least significant byte first || 4-byte vout, least 
+significant byte first).
 
 NOTE: The `filter_type` could be defined in a BIP but can also be omitted. Alternatively a custom field and enum
 can be derived for the purpose of this specification, especially that this specification adds two new filter_types. 
@@ -214,7 +214,8 @@ Spent UTXOs should return the block_hash and an array of (sha256(outpoint||block
 As mentioned before checking the state of a UTXO should not be done by checking a specific scriptPubKey with a *third 
 party* Electrum server. Showing interest for a specific UTXO leaks privacy and should not be done in privacy focused 
 setting. A better alternative is to have a filter which indicates if a UTXO is spent or not. Construction of the filter 
-is based on the hash of the outpoint salted with the block_hash (sha256(outpoint||block_hash)[:8]). 
+is based on the hash of the outpoint salted with the block_hash (sha256(outpoint||block_hash)[:8]). Outpoints are 
+(txid, least significant byte first || 4-byte vout, least significant byte first).
 
 If matching against the filter is positive the spent UTXOs can be downloaded as well. The computed 8byte_hashes then 
 need to be compared against the downloaded hashes. Based on that the outpoints can be marked as spent.
