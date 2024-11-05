@@ -247,38 +247,6 @@ a secure private communications channel has to be established. Currently, it is 
 a simple interoperable way. 
 
 
-## Data (out-of-date)
-
-NOTE: BlindBit Oracle has gone through some changes regarding the information stored. Mainly more metadata was added.
-The UTXO set had a bug which resulted in spent non-eligible UTXOs to appear in the set.
-
-I indexed the entire mainnet from taproot activation (709632) up to 834761. Below is an overview of the db sizes right
-after syncing (`du -h -d 1`). The implementation used for the below data
-was [BlindBit Oracle](https://github.com/setavenger/blindbit-oracle/) on
-commit [48bfd911](https://github.com/setavenger/blindbit-oracle/commit/48bfd9117c51be3e2dc4804d0ef1c817ace1fcc9).
-The filter size can potentially be reduced. The taproot-only filters are solely based on the scriptPubKeys of the UTXOs
-of a block at that time. There is no cut-through used for those yet. I expect that periodically recomputing old filters
-based on the current UTXO set will reduce the size of filters. All of these optimisations are important as they can
-greatly reduce the workload for light clients.
-
-Cut-through reduces the number of tweaks by about 38%. This can help light client because this basically means that
-they can
-reduce their computation time by about 38%. The db size does increase quite a bit. This is due to the key value schema
-used.
-~~For `tweaks` the key is blockHash [32] + txid [32] then the tweak [33] as value. The `tweak-index` database stores the
-tweaks concatenated and unordered per blockHash. So we have blockHash [32] and then var-length value which
-is [n * 33].~~
-
-```plaintext
-217M	./filters
-2.7G	./utxos
- 16M	./headers-inv
- 12M	./headers
-2.8G	./tweaks        33,679,543 tweaks 
-1.7G	./tweak-index   54,737,510 tweaks
-7.4G	.
-```
-
 ## Dust limits
 
 This [nostr post](https://njump.me/nevent1qqs92428jlhkdtpa9334whfagxx8genc6l3ggcvua859mu2k0fldvgqzypn4hp87wh3pd2u5036r3mj3njnhw5mkmhc9mt0m5cnch5qju8tjs47scs3)
@@ -322,13 +290,12 @@ min                1.00
 max     410000000000.00
 ```
 
-
 ## Separating Scanning and Spending
 
+This specification also aims to provide a protocol to interact with selfhosted scanning software. 
 In order to improve the UX for users we can construct separate programs for scanning and spending. BIP 352 already considered 
 this which is why we have a spending and a scanning key. This separation can achieve at least two things:  
-- Added security - If the spend key is not stored on an always-on device risk of loosing funds can be reduced.  
-
+- Added security - The spend key is not stored on an always-on device, risk of loosing funds can be reduced.  
 - "Faster" perceived scan times - imagining an always-on scan program. This program can run as a background task on a server 
 similar to an indexing server (think: BlindBit Oracle or in general an Electrum server). 
 
@@ -353,7 +320,61 @@ Umbrel but has not been submitted yet, it can run in combination with BlindBit O
 
 ### Endpoint specifications
 
-[see [BlindBit Scan](https://github.com/setavenger/blindbit-scan?tab=readme-ov-file#endpoints) for now]
+The following endpoints are defined:
+
+#### Height
+
+A simple endpoint which returns the last scanned height.
+
+```json
+{"height": 861234}
+```
+
+#### Address
+
+Returns the silent payment address which is being scanned for.
+
+```json
+{"address": "sp1..."}
+```
+
+#### UTXOs
+
+The UTXOs belonging to the wallet are shared via this endpoint. 
+Importing this UTXO data is sufficient to spend the coins belonging to the wallet.
+For added security this data can be checked against a private electrum server as well. 
+Although this data would normally originate from a highly trusted source in the first place. 
+Hence additional checks are not critical.
+
+```json
+[
+  {
+    "txid": "66cf6460207e957ff77b1cad191050a8623d36671e94a46813b4bc10e6b35b6c",
+    "vout": 0,
+    "amount": 12000000,
+    "priv_key_tweak": "6ffdbe4ab9c40a43edf31394ba8226475e610cd1a0d5da808248c1c9d6d79056",
+    "pub_key": "bea89f2f17a7f438f4d5ab495d9a68a5d8ed3c7b5166f7427a6c39e6d9e3b062",
+    "timestamp": 1721944866,
+    "utxo_state": "spent",
+    "label": null
+  },
+  {
+    "txid": "66cf6460207e957ff77b1cad191050a8623d36671e94a46813b4bc10e6b35b6c",
+    "vout": 1,
+    "amount": 55990460,
+    "priv_key_tweak": "ce2be4d8974a0852ac6c791c8d6332a1044d1b5224dc4da36522e9ff49150a07",
+    "pub_key": "9326bdcdd477bf09d4fd3e39af62d9b3b0e0526c02d66b7ad4e0f80430cc1527",
+    "timestamp": 1721944866,
+    "utxo_state": "unspent",
+    "label": {
+      "pub_key": "02504188df0e7d4c1559e8d7e1d4c4c417086824ff37ddd98afbcc3a461430f1bd",
+      "tweak": "cea33be68bbdeed59859bbc3b3afc8798564d3afc2690d68bb7223cb0d481dc0",
+      "address": "tsp1qqt7u5h5n4cw8yctkednnnydytcuwmhz5xkdv0qtmscx90dwu06s5yq62ft33x5a2c605knje7u7c6fmfjvmjkq5xpchzr5xlqzguhwcyfc8gw326",
+      "m": 0
+    }
+  }
+]
+```
 
 [^1]: In order to properly spend a UTXO the light client needs txid, vout, scriptPubKey and the value. An index server
 can easily provide this data to light clients.
