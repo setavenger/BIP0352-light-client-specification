@@ -322,6 +322,39 @@ min                1.00
 max     410000000000.00
 ```
 
+
+## Separating Scanning and Spending
+
+In order to improve the UX for users we can construct separate programs for scanning and spending. BIP 352 already considered 
+this which is why we have a spending and a scanning key. This separation can achieve at least two things:  
+- Added security - If the spend key is not stored on an always-on device risk of loosing funds can be reduced.  
+
+- "Faster" perceived scan times - imagining an always-on scan program. This program can run as a background task on a server 
+similar to an indexing server (think: BlindBit Oracle or in general an Electrum server). 
+
+The process would look as follows:
+
+1) The user sets up a wallet with scan and spend keys
+2) She takes the spend public key and scan secret key and starts a scan program on a server or node-in-a-box device
+3) When she wants to see the status of her wallet she queries her scan program for the UTXOs via a simple API request
+4) Her spending wallet with both full keys now has the latest state of her UTXOs
+5) She can spend just like with any other wallet
+
+The scan program ideally runs continuously and is therefore always "synced" up to the chain tip. Hence querying the program 
+should always return the most recent state of the wallet. For the user who opens her wallet the UTXO are therefore always at hand.
+This eliminates long scan times for mobile devices as they don't have to do any scanning at all. Simple API requests are all
+it takes. The experience is basically the same as with traditional wallets combined with electrum. Spending is just a couple requests 
+away. The caveat here is that the entire point of Silent Payments is to improve privacy. So a user *must* trust the scan program to not 
+leak privacy, hence the scan program should be run on ones *own* server/node-in-a-box. [BlindBit Scan](https://github.com/setavenger/blindbit-scan) 
+is one of the first scanners for Silent Payments. Part of the BlindBit suite there is also a Proof-of-Concept mobile spending app called 
+[BlindBit Spend](https://github.com/setavenger/blindbit-spend). Those two programs together follow the flow outlined above. 
+BlindBit Scan does the continuous scanning and BlindBit Spend allows a user to spend her UTXOs. BlindBit Scan is ready for 
+Umbrel but has not been submitted yet, it can run in combination with BlindBit Oracle (both are available in the same fork of [Umbrel-Apps here](https://github.com/setavenger/umbrel-apps))
+
+### Endpoint specifications
+
+[see [BlindBit Scan](https://github.com/setavenger/blindbit-scan?tab=readme-ov-file#endpoints) for now]
+
 [^1]: In order to properly spend a UTXO the light client needs txid, vout, scriptPubKey and the value. An index server
 can easily provide this data to light clients.
 
